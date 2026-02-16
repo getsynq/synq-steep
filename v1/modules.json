@@ -1,0 +1,29 @@
+[
+  {
+    "id": "yellow_cab_raw",
+    "label": null,
+    "description": null,
+    "identifier": "YELLOW_CAB_RAW",
+    "table": "YELLOW_CAB_RAW",
+    "schema": "RAW",
+    "externalSource": null
+  },
+  {
+    "id": "trips_fact_table",
+    "label": null,
+    "description": null,
+    "identifier": "TRIPS_FACT",
+    "table": "TRIPS_FACT",
+    "schema": "PUBLIC",
+    "externalSource": "dbt-cloud"
+  },
+  {
+    "id": "trips_staging",
+    "label": null,
+    "description": null,
+    "identifier": "TRIPS_STAGING",
+    "table": "TRIPS_STAGING",
+    "schema": "STAGING",
+    "externalSource": null
+  }
+]

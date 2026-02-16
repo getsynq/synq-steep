@@ -1,0 +1,59 @@
+{
+  "id": "avg_fare_amount",
+  "identifier": "avg_fare_amount",
+  "label": "Average Fare Amount",
+  "description": "Average fare amount for completed taxi trips",
+  "link": "https://web.steep.app/demo/metrics/avg_fare_amount",
+  "isPrivate": false,
+  "isUnlisted": false,
+  "updatedAt": "2026-01-19T09:53:21.460Z",
+  "dimensions": [
+    {
+      "id": "payment_type",
+      "label": "Payment Type",
+      "type": "string-or-boolean",
+      "description": null
+    },
+    {
+      "id": "pickup_borough",
+      "label": "Pickup Borough",
+      "type": "string-or-boolean",
+      "description": null
+    },
+    {
+      "id": "dropoff_borough",
+      "label": "Dropoff Borough",
+      "type": "string-or-boolean",
+      "description": null
+    },
+    {
+      "id": "rate_code",
+      "label": "Rate Code",
+      "type": "string-or-boolean",
+      "description": null
+    }
+  ],
+  "module": {
+    "id": "trips_fact_table",
+    "label": null,
+    "description": null,
+    "identifier": "TRIPS_FACT",
+    "table": "TRIPS_FACT",
+    "schema": "PUBLIC",
+    "externalSource": "dbt-cloud"
+  },
+  "slices": [],
+  "cohort": null,
+  "owners": [
+    "data_team_lead",
+    "analytics_eng"
+  ],
+  "category": "Fares",
+  "timeResampling": null,
+  "timeGrains": null,
+  "filters": null,
+  "calculation": "average",
+  "numeratorSql": "sum(fare_amount)",
+  "denominatorSql": "count(*)",
+  "format": "number"
+}
