@@ -24,7 +24,7 @@ class SteepClient:
         self.token = token
         self.mock_dir = mock_dir
         self._client = httpx.Client(
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"ApiKey {token}"},
             timeout=30.0,
         )
 
