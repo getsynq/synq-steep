@@ -68,7 +68,7 @@ class TestSteepClientLiveMode:
 
         assert route.called
         request = route.calls[0].request
-        assert request.headers["Authorization"] == "Bearer my-secret-token"
+        assert request.headers["Authorization"] == "ApiKey my-secret-token"
 
     @respx.mock
     def test_get_metrics_with_expand_param(self) -> None:
