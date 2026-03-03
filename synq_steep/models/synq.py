@@ -1,5 +1,4 @@
 import base64
-from dataclasses import dataclass
 from enum import IntEnum
 
 import msgspec
@@ -50,8 +49,7 @@ class CustomIdentifier(msgspec.Struct, frozen=True):
         return cls(custom=CustomId(id=f"steep::module::{steep_id}"))
 
 
-@dataclass(frozen=True)
-class SnowflakeConfig:
+class SnowflakeConfig(msgspec.Struct, frozen=True):
     """Snowflake connection configuration for upstream table relationships."""
 
     account: str
