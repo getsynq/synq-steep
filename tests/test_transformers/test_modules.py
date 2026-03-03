@@ -1,6 +1,7 @@
 import msgspec
 
 from synq_steep.models.steep import SteepModule
+from synq_steep.models.synq import SnowflakeConfig
 from synq_steep.transformers.modules import ModuleTransformer
 
 
@@ -27,30 +28,21 @@ class TestModuleTransformerRelationships:
 
         assert relationships == []
 
-    def test_returns_empty_with_only_account(self) -> None:
+    def test_returns_empty_with_none_config(self) -> None:
         transformer = ModuleTransformer()
         module = _make_module()
 
-        relationships = transformer.to_relationships(module, snowflake_account="abcd")
+        relationships = transformer.to_relationships(module, snowflake_config=None)
 
         assert relationships == []
 
-    def test_returns_empty_with_only_database(self) -> None:
-        transformer = ModuleTransformer()
-        module = _make_module()
-
-        relationships = transformer.to_relationships(module, snowflake_database="MART")
-
-        assert relationships == []
-
-    def test_generates_one_relationship_with_full_config(self) -> None:
+    def test_generates_one_relationship_with_config(self) -> None:
         transformer = ModuleTransformer()
         module = _make_module()
 
         relationships = transformer.to_relationships(
             module,
-            snowflake_account="abcd",
-            snowflake_database="MART",
+            snowflake_config=SnowflakeConfig(account="abcd", database="MART"),
         )
 
         assert len(relationships) == 1
@@ -61,8 +53,7 @@ class TestModuleTransformerRelationships:
 
         relationships = transformer.to_relationships(
             module,
-            snowflake_account="abcd",
-            snowflake_database="MART",
+            snowflake_config=SnowflakeConfig(account="abcd", database="MART"),
         )
 
         encoded = msgspec.json.encode(relationships[0])
@@ -83,8 +74,7 @@ class TestModuleTransformerRelationships:
 
         relationships = transformer.to_relationships(
             module,
-            snowflake_account="abcd",
-            snowflake_database="MART",
+            snowflake_config=SnowflakeConfig(account="abcd", database="MART"),
         )
 
         encoded = msgspec.json.encode(relationships[0])
@@ -100,8 +90,7 @@ class TestModuleTransformerRelationships:
 
         relationships = transformer.to_relationships(
             module,
-            snowflake_account="myaccount",
-            snowflake_database="ANALYTICS",
+            snowflake_config=SnowflakeConfig(account="myaccount", database="ANALYTICS"),
         )
 
         encoded = msgspec.json.encode(relationships[0])

@@ -3,7 +3,6 @@ from synq_steep.models.synq import (
     Annotation,
     CustomIdentifier,
     EntityTypeId,
-    Identifier,
     Relationship,
     SynqEntity,
 )
@@ -53,7 +52,7 @@ class MetricTransformer:
 
         return [
             Relationship(
-                upstream=Identifier.for_steep_module(metric.module.id),
-                downstream=Identifier.for_steep_metric(metric.id),
+                upstream=CustomIdentifier.for_steep_module(metric.module.id),
+                downstream=CustomIdentifier.for_steep_metric(metric.id),
             )
         ]

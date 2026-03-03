@@ -3,8 +3,8 @@ from synq_steep.models.synq import (
     Annotation,
     CustomIdentifier,
     EntityTypeId,
-    Identifier,
     Relationship,
+    SnowflakeConfig,
     SnowflakeIdentifier,
     SynqEntity,
 )
@@ -38,29 +38,27 @@ class ModuleTransformer:
     def to_relationships(
         self,
         module: SteepModule,
-        snowflake_account: str | None = None,
-        snowflake_database: str | None = None,
+        snowflake_config: SnowflakeConfig | None = None,
     ) -> list[Relationship]:
         """Generate relationships for a module.
 
-        When snowflake_account and snowflake_database are both provided,
-        creates a relationship where:
+        When snowflake_config is provided, creates a relationship where:
         - upstream: the Snowflake table (using module's schema and table)
         - downstream: the Steep module
 
-        Returns empty list if Snowflake config is not provided.
+        Returns empty list if no Snowflake config is provided.
         """
-        if snowflake_account is None or snowflake_database is None:
+        if snowflake_config is None:
             return []
 
         return [
             Relationship(
                 upstream=SnowflakeIdentifier.for_snowflake_table(
-                    account=snowflake_account,
-                    database=snowflake_database,
+                    account=snowflake_config.account,
+                    database=snowflake_config.database,
                     schema=module.schema_,
                     table=module.table,
                 ),
-                downstream=Identifier.for_steep_module(module.id),
+                downstream=CustomIdentifier.for_steep_module(module.id),
             )
         ]

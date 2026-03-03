@@ -3,7 +3,6 @@ from synq_steep.models.synq import (
     Annotation,
     CustomIdentifier,
     EntityTypeId,
-    Identifier,
     Relationship,
     SynqEntity,
 )
@@ -36,7 +35,7 @@ class EntityTransformer:
         """
         return [
             Relationship(
-                upstream=Identifier.for_steep_module(entity.module_id),
-                downstream=Identifier.for_steep_entity(entity.id),
+                upstream=CustomIdentifier.for_steep_module(entity.module_id),
+                downstream=CustomIdentifier.for_steep_entity(entity.id),
             )
         ]

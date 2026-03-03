@@ -1,4 +1,5 @@
 import base64
+from dataclasses import dataclass
 from enum import IntEnum
 
 import msgspec
@@ -28,9 +29,13 @@ class SnowflakeTableId(msgspec.Struct, frozen=True):
 
 
 class CustomIdentifier(msgspec.Struct, frozen=True):
-    """Custom identifier for SYNQ entities."""
+    """Custom identifier for SYNQ entities and relationship endpoints."""
 
     custom: CustomId
+
+    @property
+    def str_id(self) -> str:
+        return self.custom.id
 
     @classmethod
     def for_steep_metric(cls, steep_id: str) -> "CustomIdentifier":
@@ -43,6 +48,14 @@ class CustomIdentifier(msgspec.Struct, frozen=True):
     @classmethod
     def for_steep_module(cls, steep_id: str) -> "CustomIdentifier":
         return cls(custom=CustomId(id=f"steep::module::{steep_id}"))
+
+
+@dataclass(frozen=True)
+class SnowflakeConfig:
+    """Snowflake connection configuration for upstream table relationships."""
+
+    account: str
+    database: str
 
 
 class SnowflakeIdentifier(msgspec.Struct, frozen=True):
@@ -66,24 +79,6 @@ class SnowflakeIdentifier(msgspec.Struct, frozen=True):
                 table=table,
             )
         )
-
-
-class Identifier(msgspec.Struct, frozen=True):
-    """Identifier wrapper for relationships (supports custom and other types)."""
-
-    custom: CustomId
-
-    @classmethod
-    def for_steep_metric(cls, steep_id: str) -> "Identifier":
-        return cls(custom=CustomId(id=f"steep::metric::{steep_id}"))
-
-    @classmethod
-    def for_steep_entity(cls, steep_id: str) -> "Identifier":
-        return cls(custom=CustomId(id=f"steep::entity::{steep_id}"))
-
-    @classmethod
-    def for_steep_module(cls, steep_id: str) -> "Identifier":
-        return cls(custom=CustomId(id=f"steep::module::{steep_id}"))
 
 
 class Annotation(msgspec.Struct, frozen=True):
@@ -127,8 +122,8 @@ class UpsertTypeRequest(msgspec.Struct, frozen=True):
 class Relationship(msgspec.Struct, frozen=True):
     """Relationship between two entities (upstream -> downstream)."""
 
-    upstream: Identifier | SnowflakeIdentifier
-    downstream: Identifier
+    upstream: CustomIdentifier | SnowflakeIdentifier
+    downstream: CustomIdentifier
 
 
 class UpsertRelationshipsRequest(msgspec.Struct, frozen=True):

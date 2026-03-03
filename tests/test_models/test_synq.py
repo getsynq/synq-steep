@@ -4,7 +4,6 @@ import msgspec
 from synq_steep.models.synq import (
     Annotation,
     CustomIdentifier,
-    Identifier,
     Relationship,
     SnowflakeIdentifier,
     SnowflakeTableId,
@@ -231,7 +230,7 @@ class TestRelationshipWithSnowflakeUpstream:
                 schema="PUBLIC",
                 table="TRIPS_FACT",
             ),
-            downstream=Identifier.for_steep_module("trips_fact_table"),
+            downstream=CustomIdentifier.for_steep_module("trips_fact_table"),
         )
         encoded = msgspec.json.encode(relationship)
         decoded = msgspec.json.decode(encoded)
@@ -245,8 +244,8 @@ class TestRelationshipWithSnowflakeUpstream:
 
     def test_relationship_with_custom_upstream_still_works(self) -> None:
         relationship = Relationship(
-            upstream=Identifier.for_steep_module("mod1"),
-            downstream=Identifier.for_steep_metric("metric1"),
+            upstream=CustomIdentifier.for_steep_module("mod1"),
+            downstream=CustomIdentifier.for_steep_metric("metric1"),
         )
         encoded = msgspec.json.encode(relationship)
         decoded = msgspec.json.decode(encoded)
@@ -257,8 +256,8 @@ class TestRelationshipWithSnowflakeUpstream:
     def test_upsert_request_with_mixed_relationships(self) -> None:
         relationships = [
             Relationship(
-                upstream=Identifier.for_steep_module("mod1"),
-                downstream=Identifier.for_steep_metric("metric1"),
+                upstream=CustomIdentifier.for_steep_module("mod1"),
+                downstream=CustomIdentifier.for_steep_metric("metric1"),
             ),
             Relationship(
                 upstream=SnowflakeIdentifier.for_snowflake_table(
@@ -267,7 +266,7 @@ class TestRelationshipWithSnowflakeUpstream:
                     schema="PUBLIC",
                     table="MY_TABLE",
                 ),
-                downstream=Identifier.for_steep_module("mod1"),
+                downstream=CustomIdentifier.for_steep_module("mod1"),
             ),
         ]
         request = UpsertRelationshipsRequest(relationships=relationships)
