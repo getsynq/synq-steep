@@ -18,6 +18,15 @@ class CustomId(msgspec.Struct, frozen=True):
     id: str
 
 
+class SnowflakeTableId(msgspec.Struct, frozen=True):
+    """Snowflake table coordinates."""
+
+    account: str
+    database: str
+    schema: str
+    table: str
+
+
 class CustomIdentifier(msgspec.Struct, frozen=True):
     """Custom identifier for SYNQ entities."""
 
@@ -34,6 +43,29 @@ class CustomIdentifier(msgspec.Struct, frozen=True):
     @classmethod
     def for_steep_module(cls, steep_id: str) -> "CustomIdentifier":
         return cls(custom=CustomId(id=f"steep::module::{steep_id}"))
+
+
+class SnowflakeIdentifier(msgspec.Struct, frozen=True):
+    """Snowflake table identifier for SYNQ relationships."""
+
+    snowflake_table: SnowflakeTableId = msgspec.field(name="snowflakeTable")
+
+    @classmethod
+    def for_snowflake_table(
+        cls,
+        account: str,
+        database: str,
+        schema: str,
+        table: str,
+    ) -> "SnowflakeIdentifier":
+        return cls(
+            snowflake_table=SnowflakeTableId(
+                account=account,
+                database=database,
+                schema=schema,
+                table=table,
+            )
+        )
 
 
 class Identifier(msgspec.Struct, frozen=True):
@@ -95,7 +127,7 @@ class UpsertTypeRequest(msgspec.Struct, frozen=True):
 class Relationship(msgspec.Struct, frozen=True):
     """Relationship between two entities (upstream -> downstream)."""
 
-    upstream: Identifier
+    upstream: Identifier | SnowflakeIdentifier
     downstream: Identifier
 
 

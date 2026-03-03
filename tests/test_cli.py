@@ -564,6 +564,112 @@ class TestCliDryRunWithNewPhases:
         assert result.exit_code == 0, f"Failed with output: {result.output}"
 
 
+class TestCliSnowflakeRelationships:
+    """Tests for Snowflake table upstream relationships via CLI options."""
+
+    def test_help_shows_snowflake_options(self) -> None:
+        result = runner.invoke(app, ["--help"])
+
+        assert result.exit_code == 0
+        assert "--snowflake-account" in result.stdout
+        assert "--snowflake-database" in result.stdout
+
+    @respx.mock
+    def test_snowflake_relationships_included_when_options_provided(
+        self, mock_data_dir: Path
+    ) -> None:
+        import json
+
+        captured_bodies: list[dict] = []
+
+        respx.post("https://developer.synq.io/oauth2/token").mock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "test-token", "token_type": "bearer"},
+            )
+        )
+        respx.post("https://developer.synq.io/api/entities/custom/v1/types").mock(
+            return_value=httpx.Response(200, json={})
+        )
+        respx.post("https://developer.synq.io/api/entities/custom/v1/entities").mock(
+            return_value=httpx.Response(200, json={})
+        )
+
+        def capture(request: httpx.Request) -> httpx.Response:
+            captured_bodies.append(json.loads(request.content))
+            return httpx.Response(200, json={})
+
+        respx.post(
+            "https://developer.synq.io/api/entities/custom/v1/relationships"
+        ).mock(side_effect=capture)
+
+        result = runner.invoke(
+            app,
+            [
+                "--mock-dir", str(mock_data_dir),
+                "--synq-client-id", "test-id",
+                "--synq-client-secret", "test-secret",
+                "--snowflake-account", "abcd",
+                "--snowflake-database", "MART",
+            ],
+        )
+
+        assert result.exit_code == 0, f"Failed with output: {result.output}"
+        assert len(captured_bodies) > 0
+        all_relationships = captured_bodies[0]["relationships"]
+        snowflake_rels = [
+            r for r in all_relationships if "snowflakeTable" in r["upstream"]
+        ]
+        # Mock data has 3 modules, each should produce one Snowflake relationship
+        assert len(snowflake_rels) == 3
+
+    @respx.mock
+    def test_no_snowflake_relationships_without_options(
+        self, mock_data_dir: Path
+    ) -> None:
+        import json
+
+        captured_bodies: list[dict] = []
+
+        respx.post("https://developer.synq.io/oauth2/token").mock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "test-token", "token_type": "bearer"},
+            )
+        )
+        respx.post("https://developer.synq.io/api/entities/custom/v1/types").mock(
+            return_value=httpx.Response(200, json={})
+        )
+        respx.post("https://developer.synq.io/api/entities/custom/v1/entities").mock(
+            return_value=httpx.Response(200, json={})
+        )
+
+        def capture(request: httpx.Request) -> httpx.Response:
+            captured_bodies.append(json.loads(request.content))
+            return httpx.Response(200, json={})
+
+        respx.post(
+            "https://developer.synq.io/api/entities/custom/v1/relationships"
+        ).mock(side_effect=capture)
+
+        result = runner.invoke(
+            app,
+            [
+                "--mock-dir", str(mock_data_dir),
+                "--synq-client-id", "test-id",
+                "--synq-client-secret", "test-secret",
+            ],
+        )
+
+        assert result.exit_code == 0, f"Failed with output: {result.output}"
+        assert len(captured_bodies) > 0
+        all_relationships = captured_bodies[0]["relationships"]
+        snowflake_rels = [
+            r for r in all_relationships if "snowflakeTable" in r["upstream"]
+        ]
+        assert len(snowflake_rels) == 0
+
+
 class TestCliTypeFiltering:
     def test_filter_to_metrics_only(self, mock_data_dir: Path) -> None:
         result = runner.invoke(

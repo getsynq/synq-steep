@@ -94,6 +94,20 @@ def sync(
             help="Skip relationship creation phase",
         ),
     ] = False,
+    snowflake_account: Annotated[
+        str | None,
+        typer.Option(
+            envvar="SNOWFLAKE_ACCOUNT",
+            help="Snowflake account identifier for upstream table relationships",
+        ),
+    ] = None,
+    snowflake_database: Annotated[
+        str | None,
+        typer.Option(
+            envvar="SNOWFLAKE_DATABASE",
+            help="Snowflake database name for upstream table relationships",
+        ),
+    ] = None,
 ) -> None:
     """Sync Steep data to SYNQ."""
     if mock_dir is None and steep_token is None:
@@ -128,6 +142,8 @@ def sync(
             host=synq_host,
             skip_types=skip_types,
             skip_relationships=skip_relationships,
+            snowflake_account=snowflake_account,
+            snowflake_database=snowflake_database,
         )
 
 
@@ -181,7 +197,12 @@ def _print_entities(entities: list[SynqEntity]) -> None:
         typer.echo()
 
 
-def _collect_relationships(raw_data: RawData, type_set: set[str]) -> list[Relationship]:
+def _collect_relationships(
+    raw_data: RawData,
+    type_set: set[str],
+    snowflake_account: str | None = None,
+    snowflake_database: str | None = None,
+) -> list[Relationship]:
     """Collect relationships from all transformers."""
     relationships: list[Relationship] = []
 
@@ -198,7 +219,13 @@ def _collect_relationships(raw_data: RawData, type_set: set[str]) -> list[Relati
     if "modules" in type_set:
         transformer = ModuleTransformer()
         for module in raw_data.modules:
-            relationships.extend(transformer.to_relationships(module))
+            relationships.extend(
+                transformer.to_relationships(
+                    module,
+                    snowflake_account=snowflake_account,
+                    snowflake_database=snowflake_database,
+                )
+            )
 
     return relationships
 
@@ -212,6 +239,8 @@ def _upload_all(
     host: str,
     skip_types: bool,
     skip_relationships: bool,
+    snowflake_account: str | None = None,
+    snowflake_database: str | None = None,
 ) -> None:
     with SynqClient(
         client_id=client_id,
@@ -237,7 +266,12 @@ def _upload_all(
 
         # Phase 3: Create relationships
         if not skip_relationships:
-            relationships = _collect_relationships(raw_data, type_set)
+            relationships = _collect_relationships(
+                raw_data,
+                type_set,
+                snowflake_account=snowflake_account,
+                snowflake_database=snowflake_database,
+            )
             if relationships:
                 typer.echo("Creating relationships...")
                 typer.echo(f"  Uploading {len(relationships)} relationships...")

@@ -1,10 +1,16 @@
+import pytest
 import msgspec
 
 from synq_steep.models.synq import (
     Annotation,
     CustomIdentifier,
+    Identifier,
+    Relationship,
+    SnowflakeIdentifier,
+    SnowflakeTableId,
     SynqEntity,
     SynqUpsertRequest,
+    UpsertRelationshipsRequest,
 )
 
 
@@ -128,3 +134,146 @@ class TestSynqUpsertRequest:
 
         assert "entity" in decoded
         assert decoded["entity"]["name"] == "Test Metric"
+
+
+class TestSnowflakeTableId:
+    def test_create_snowflake_table_id(self) -> None:
+        table_id = SnowflakeTableId(
+            account="abcd",
+            database="MART",
+            schema="myschema",
+            table="mytable",
+        )
+
+        assert table_id.account == "abcd"
+        assert table_id.database == "MART"
+        assert table_id.schema == "myschema"
+        assert table_id.table == "mytable"
+
+    def test_serializes_correctly(self) -> None:
+        table_id = SnowflakeTableId(
+            account="abcd",
+            database="MART",
+            schema="myschema",
+            table="mytable",
+        )
+        encoded = msgspec.json.encode(table_id)
+        decoded = msgspec.json.decode(encoded)
+
+        assert decoded == {
+            "account": "abcd",
+            "database": "MART",
+            "schema": "myschema",
+            "table": "mytable",
+        }
+
+    def test_is_frozen(self) -> None:
+        table_id = SnowflakeTableId(
+            account="abcd",
+            database="MART",
+            schema="myschema",
+            table="mytable",
+        )
+
+        with pytest.raises(AttributeError):
+            table_id.account = "other"  # type: ignore[misc]
+
+
+class TestSnowflakeIdentifier:
+    def test_create_via_factory(self) -> None:
+        identifier = SnowflakeIdentifier.for_snowflake_table(
+            account="abcd",
+            database="MART",
+            schema="myschema",
+            table="mytable",
+        )
+
+        assert identifier.snowflake_table.account == "abcd"
+        assert identifier.snowflake_table.database == "MART"
+        assert identifier.snowflake_table.schema == "myschema"
+        assert identifier.snowflake_table.table == "mytable"
+
+    def test_serializes_with_camel_case_key(self) -> None:
+        identifier = SnowflakeIdentifier.for_snowflake_table(
+            account="abcd",
+            database="MART",
+            schema="myschema",
+            table="mytable",
+        )
+        encoded = msgspec.json.encode(identifier)
+        decoded = msgspec.json.decode(encoded)
+
+        assert decoded == {
+            "snowflakeTable": {
+                "account": "abcd",
+                "database": "MART",
+                "schema": "myschema",
+                "table": "mytable",
+            }
+        }
+
+    def test_json_key_is_snowflake_table_not_snake_case(self) -> None:
+        identifier = SnowflakeIdentifier.for_snowflake_table(
+            account="x", database="Y", schema="z", table="t",
+        )
+        raw = msgspec.json.encode(identifier).decode("utf-8")
+
+        assert "snowflakeTable" in raw
+        assert "snowflake_table" not in raw
+
+
+class TestRelationshipWithSnowflakeUpstream:
+    def test_relationship_with_snowflake_upstream_serializes(self) -> None:
+        relationship = Relationship(
+            upstream=SnowflakeIdentifier.for_snowflake_table(
+                account="abcd",
+                database="MART",
+                schema="PUBLIC",
+                table="TRIPS_FACT",
+            ),
+            downstream=Identifier.for_steep_module("trips_fact_table"),
+        )
+        encoded = msgspec.json.encode(relationship)
+        decoded = msgspec.json.decode(encoded)
+
+        assert "snowflakeTable" in decoded["upstream"]
+        assert decoded["upstream"]["snowflakeTable"]["account"] == "abcd"
+        assert decoded["upstream"]["snowflakeTable"]["database"] == "MART"
+        assert decoded["upstream"]["snowflakeTable"]["schema"] == "PUBLIC"
+        assert decoded["upstream"]["snowflakeTable"]["table"] == "TRIPS_FACT"
+        assert decoded["downstream"]["custom"]["id"] == "steep::module::trips_fact_table"
+
+    def test_relationship_with_custom_upstream_still_works(self) -> None:
+        relationship = Relationship(
+            upstream=Identifier.for_steep_module("mod1"),
+            downstream=Identifier.for_steep_metric("metric1"),
+        )
+        encoded = msgspec.json.encode(relationship)
+        decoded = msgspec.json.decode(encoded)
+
+        assert "custom" in decoded["upstream"]
+        assert decoded["upstream"]["custom"]["id"] == "steep::module::mod1"
+
+    def test_upsert_request_with_mixed_relationships(self) -> None:
+        relationships = [
+            Relationship(
+                upstream=Identifier.for_steep_module("mod1"),
+                downstream=Identifier.for_steep_metric("metric1"),
+            ),
+            Relationship(
+                upstream=SnowflakeIdentifier.for_snowflake_table(
+                    account="abcd",
+                    database="MART",
+                    schema="PUBLIC",
+                    table="MY_TABLE",
+                ),
+                downstream=Identifier.for_steep_module("mod1"),
+            ),
+        ]
+        request = UpsertRelationshipsRequest(relationships=relationships)
+        encoded = msgspec.json.encode(request)
+        decoded = msgspec.json.decode(encoded)
+
+        assert len(decoded["relationships"]) == 2
+        assert "custom" in decoded["relationships"][0]["upstream"]
+        assert "snowflakeTable" in decoded["relationships"][1]["upstream"]
