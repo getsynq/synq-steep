@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import httpx
@@ -574,12 +575,8 @@ class TestCliSnowflakeRelationships:
         assert "--snowflake-account" in result.stdout
         assert "--snowflake-database" in result.stdout
 
-    @respx.mock
-    def test_snowflake_relationships_included_when_options_provided(
-        self, mock_data_dir: Path
-    ) -> None:
-        import json
-
+    def _setup_full_sync_mocks(self) -> list[dict]:
+        """Setup standard sync mocks and return a list that captures relationship request bodies."""
         captured_bodies: list[dict] = []
 
         respx.post("https://developer.synq.io/oauth2/token").mock(
@@ -603,69 +600,50 @@ class TestCliSnowflakeRelationships:
             "https://developer.synq.io/api/entities/custom/v1/relationships"
         ).mock(side_effect=capture)
 
-        result = runner.invoke(
-            app,
-            [
-                "--mock-dir", str(mock_data_dir),
-                "--synq-client-id", "test-id",
-                "--synq-client-secret", "test-secret",
-                "--snowflake-account", "abcd",
-                "--snowflake-database", "MART",
-            ],
-        )
+        return captured_bodies
+
+    def test_snowflake_relationships_included_when_options_provided(
+        self, mock_data_dir: Path
+    ) -> None:
+        with respx.mock:
+            captured_bodies = self._setup_full_sync_mocks()
+            result = runner.invoke(
+                app,
+                [
+                    "--mock-dir", str(mock_data_dir),
+                    "--synq-client-id", "test-id",
+                    "--synq-client-secret", "test-secret",
+                    "--snowflake-account", "abcd",
+                    "--snowflake-database", "MART",
+                ],
+            )
 
         assert result.exit_code == 0, f"Failed with output: {result.output}"
-        assert len(captured_bodies) > 0
-        all_relationships = captured_bodies[0]["relationships"]
         snowflake_rels = [
-            r for r in all_relationships if "snowflakeTable" in r["upstream"]
+            r for r in captured_bodies[0]["relationships"]
+            if "snowflakeTable" in r["upstream"]
         ]
         # Mock data has 3 modules, each should produce one Snowflake relationship
         assert len(snowflake_rels) == 3
 
-    @respx.mock
     def test_no_snowflake_relationships_without_options(
         self, mock_data_dir: Path
     ) -> None:
-        import json
-
-        captured_bodies: list[dict] = []
-
-        respx.post("https://developer.synq.io/oauth2/token").mock(
-            return_value=httpx.Response(
-                200,
-                json={"access_token": "test-token", "token_type": "bearer"},
+        with respx.mock:
+            captured_bodies = self._setup_full_sync_mocks()
+            result = runner.invoke(
+                app,
+                [
+                    "--mock-dir", str(mock_data_dir),
+                    "--synq-client-id", "test-id",
+                    "--synq-client-secret", "test-secret",
+                ],
             )
-        )
-        respx.post("https://developer.synq.io/api/entities/custom/v1/types").mock(
-            return_value=httpx.Response(200, json={})
-        )
-        respx.post("https://developer.synq.io/api/entities/custom/v1/entities").mock(
-            return_value=httpx.Response(200, json={})
-        )
-
-        def capture(request: httpx.Request) -> httpx.Response:
-            captured_bodies.append(json.loads(request.content))
-            return httpx.Response(200, json={})
-
-        respx.post(
-            "https://developer.synq.io/api/entities/custom/v1/relationships"
-        ).mock(side_effect=capture)
-
-        result = runner.invoke(
-            app,
-            [
-                "--mock-dir", str(mock_data_dir),
-                "--synq-client-id", "test-id",
-                "--synq-client-secret", "test-secret",
-            ],
-        )
 
         assert result.exit_code == 0, f"Failed with output: {result.output}"
-        assert len(captured_bodies) > 0
-        all_relationships = captured_bodies[0]["relationships"]
         snowflake_rels = [
-            r for r in all_relationships if "snowflakeTable" in r["upstream"]
+            r for r in captured_bodies[0]["relationships"]
+            if "snowflakeTable" in r["upstream"]
         ]
         assert len(snowflake_rels) == 0
 
