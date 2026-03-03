@@ -9,7 +9,6 @@ from synq_steep.models.synq import (
     Annotation,
     CustomIdentifier,
     EntityTypeId,
-    Identifier,
     Relationship,
     SynqEntity,
     Type,
@@ -377,8 +376,8 @@ class TestSynqClientUpsertRelationships:
 
         relationships = [
             Relationship(
-                upstream=Identifier.for_steep_metric("metric1"),
-                downstream=Identifier.for_steep_entity("entity1"),
+                upstream=CustomIdentifier.for_steep_metric("metric1"),
+                downstream=CustomIdentifier.for_steep_entity("entity1"),
             ),
         ]
 
@@ -411,12 +410,12 @@ class TestSynqClientUpsertRelationships:
 
         relationships = [
             Relationship(
-                upstream=Identifier.for_steep_metric("metric1"),
-                downstream=Identifier.for_steep_entity("entity1"),
+                upstream=CustomIdentifier.for_steep_metric("metric1"),
+                downstream=CustomIdentifier.for_steep_entity("entity1"),
             ),
             Relationship(
-                upstream=Identifier.for_steep_module("module1"),
-                downstream=Identifier.for_steep_metric("metric2"),
+                upstream=CustomIdentifier.for_steep_module("module1"),
+                downstream=CustomIdentifier.for_steep_metric("metric2"),
             ),
         ]
 
@@ -494,8 +493,8 @@ class TestSynqClientUpsertRelationships:
 
         relationships = [
             Relationship(
-                upstream=Identifier.for_steep_metric("metric1"),
-                downstream=Identifier.for_steep_entity("entity1"),
+                upstream=CustomIdentifier.for_steep_metric("metric1"),
+                downstream=CustomIdentifier.for_steep_entity("entity1"),
             ),
         ]
 
@@ -515,8 +514,8 @@ class TestSynqClientUpsertRelationships:
 
         relationships = [
             Relationship(
-                upstream=Identifier.for_steep_metric("metric1"),
-                downstream=Identifier.for_steep_entity("entity1"),
+                upstream=CustomIdentifier.for_steep_metric("metric1"),
+                downstream=CustomIdentifier.for_steep_entity("entity1"),
             ),
         ]
 

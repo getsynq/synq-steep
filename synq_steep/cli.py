@@ -6,8 +6,7 @@ import typer
 
 from synq_steep.clients.steep import SteepClient
 from synq_steep.clients.synq import SynqClient
-from synq_steep.models.steep import SteepEntity, SteepMetric, SteepModule
-from synq_steep.models.synq import ALL_STEEP_TYPES, Relationship, SynqEntity
+from synq_steep.models.synq import ALL_STEEP_TYPES, Relationship, SnowflakeConfig, SynqEntity
 from synq_steep.transformers.entities import EntityTransformer
 from synq_steep.transformers.metrics import MetricTransformer
 from synq_steep.transformers.modules import ModuleTransformer
@@ -94,6 +93,20 @@ def sync(
             help="Skip relationship creation phase",
         ),
     ] = False,
+    snowflake_account: Annotated[
+        str | None,
+        typer.Option(
+            envvar="SNOWFLAKE_ACCOUNT",
+            help="Snowflake account identifier for upstream table relationships",
+        ),
+    ] = None,
+    snowflake_database: Annotated[
+        str | None,
+        typer.Option(
+            envvar="SNOWFLAKE_DATABASE",
+            help="Snowflake database name for upstream table relationships",
+        ),
+    ] = None,
 ) -> None:
     """Sync Steep data to SYNQ."""
     if mock_dir is None and steep_token is None:
@@ -106,13 +119,18 @@ def sync(
             raise typer.Exit(1)
 
     type_set = _parse_types(types)
+    snowflake_config = (
+        SnowflakeConfig(account=snowflake_account, database=snowflake_database)
+        if snowflake_account and snowflake_database
+        else None
+    )
 
     with SteepClient(
         base_url=steep_url,
         token=steep_token or "",
         mock_dir=mock_dir,
     ) as steep_client:
-        entities, raw_data = _fetch_and_transform(steep_client, type_set)
+        entities, relationships = _fetch_transform_and_relate(steep_client, type_set, snowflake_config)
 
     if dry_run:
         _print_entities(entities)
@@ -121,8 +139,7 @@ def sync(
         assert synq_client_secret is not None
         _upload_all(
             entities=entities,
-            raw_data=raw_data,
-            type_set=type_set,
+            relationships=relationships,
             client_id=synq_client_id,
             client_secret=synq_client_secret,
             host=synq_host,
@@ -131,82 +148,55 @@ def sync(
         )
 
 
-class RawData:
-    """Container for raw Steep data used for relationship extraction."""
-
-    def __init__(self) -> None:
-        self.metrics: list[SteepMetric] = []
-        self.entities: list[SteepEntity] = []
-        self.modules: list[SteepModule] = []
-
-
 def _parse_types(types: str | None) -> set[str]:
     if types is None:
         return {"metrics", "entities", "modules"}
     return {t.strip() for t in types.split(",")}
 
 
-def _fetch_and_transform(
+def _fetch_transform_and_relate(
     client: SteepClient,
     type_set: set[str],
-) -> tuple[list[SynqEntity], RawData]:
+    snowflake_config: SnowflakeConfig | None = None,
+) -> tuple[list[SynqEntity], list[Relationship]]:
+    """Fetch data from Steep, transform to SYNQ entities, and collect relationships in one pass."""
     entities: list[SynqEntity] = []
-    raw_data = RawData()
+    relationships: list[Relationship] = []
 
     if "metrics" in type_set:
-        raw_data.metrics = client.get_metrics(expand=True)
         transformer = MetricTransformer()
-        entities.extend(transformer.transform(m) for m in raw_data.metrics)
+        for metric in client.get_metrics(expand=True):
+            entities.append(transformer.transform(metric))
+            relationships.extend(transformer.to_relationships(metric))
 
     if "entities" in type_set:
-        raw_data.entities = client.get_entities()
         transformer = EntityTransformer()
-        entities.extend(transformer.transform(e) for e in raw_data.entities)
+        for entity in client.get_entities():
+            entities.append(transformer.transform(entity))
+            relationships.extend(transformer.to_relationships(entity))
 
     if "modules" in type_set:
-        raw_data.modules = client.get_modules()
         transformer = ModuleTransformer()
-        entities.extend(transformer.transform(m) for m in raw_data.modules)
+        for module in client.get_modules():
+            entities.append(transformer.transform(module))
+            relationships.extend(transformer.to_relationships(module, snowflake_config=snowflake_config))
 
-    return entities, raw_data
+    return entities, relationships
 
 
 def _print_entities(entities: list[SynqEntity]) -> None:
     typer.echo(f"Found {len(entities)} entities (dry run):")
     typer.echo()
     for entity in entities:
-        typer.echo(f"  {entity.id.custom.id}: {entity.name}")
+        typer.echo(f"  {entity.id.str_id}: {entity.name}")
         encoded = msgspec.json.encode(entity)
         typer.echo(f"    {encoded.decode()}")
         typer.echo()
 
 
-def _collect_relationships(raw_data: RawData, type_set: set[str]) -> list[Relationship]:
-    """Collect relationships from all transformers."""
-    relationships: list[Relationship] = []
-
-    if "metrics" in type_set:
-        transformer = MetricTransformer()
-        for metric in raw_data.metrics:
-            relationships.extend(transformer.to_relationships(metric))
-
-    if "entities" in type_set:
-        transformer = EntityTransformer()
-        for entity in raw_data.entities:
-            relationships.extend(transformer.to_relationships(entity))
-
-    if "modules" in type_set:
-        transformer = ModuleTransformer()
-        for module in raw_data.modules:
-            relationships.extend(transformer.to_relationships(module))
-
-    return relationships
-
-
 def _upload_all(
     entities: list[SynqEntity],
-    raw_data: RawData,
-    type_set: set[str],
+    relationships: list[Relationship],
     client_id: str,
     client_secret: str,
     host: str,
@@ -231,13 +221,12 @@ def _upload_all(
         # Phase 2: Upload entities
         typer.echo("Uploading entities...")
         for entity in entities:
-            typer.echo(f"  Uploading {entity.id.custom.id}...")
+            typer.echo(f"  Uploading {entity.id.str_id}...")
             synq_client.upsert_entity(entity)
         typer.echo(f"Successfully uploaded {len(entities)} entities")
 
         # Phase 3: Create relationships
         if not skip_relationships:
-            relationships = _collect_relationships(raw_data, type_set)
             if relationships:
                 typer.echo("Creating relationships...")
                 typer.echo(f"  Uploading {len(relationships)} relationships...")

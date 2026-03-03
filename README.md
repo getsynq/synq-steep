@@ -30,6 +30,14 @@ uv run synq-steep \
   --synq-client-id $SYNQ_CLIENT_ID \
   --synq-client-secret $SYNQ_CLIENT_SECRET \
   --types metrics,modules
+
+# Sync modules with Snowflake upstream table relationships
+uv run synq-steep \
+  --steep-token $STEEP_TOKEN \
+  --synq-client-id $SYNQ_CLIENT_ID \
+  --synq-client-secret $SYNQ_CLIENT_SECRET \
+  --snowflake-account $SNOWFLAKE_ACCOUNT \
+  --snowflake-database $SNOWFLAKE_DATABASE
 ```
 
 ### Options
@@ -41,9 +49,13 @@ uv run synq-steep \
 | `--synq-client-id` | `SYNQ_CLIENT_ID` | SYNQ OAuth2 client ID |
 | `--synq-client-secret` | `SYNQ_CLIENT_SECRET` | SYNQ OAuth2 client secret |
 | `--synq-host` | `SYNQ_HOST` | SYNQ API host (default: `developer.synq.io`) |
+| `--snowflake-account` | `SNOWFLAKE_ACCOUNT` | Snowflake account identifier for upstream table relationships |
+| `--snowflake-database` | `SNOWFLAKE_DATABASE` | Snowflake database name for upstream table relationships |
 | `--dry-run` | - | Print entities instead of uploading |
 | `--mock-dir` | - | Use local JSON files instead of Steep API |
 | `--types` | - | Comma-separated types: `metrics`, `entities`, `modules` |
+| `--skip-types` | - | Skip custom type definition phase |
+| `--skip-relationships` | - | Skip relationship creation phase |
 
 ## GitHub Actions Workflow
 

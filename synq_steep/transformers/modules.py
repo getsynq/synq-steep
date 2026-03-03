@@ -4,6 +4,8 @@ from synq_steep.models.synq import (
     CustomIdentifier,
     EntityTypeId,
     Relationship,
+    SnowflakeConfig,
+    SnowflakeIdentifier,
     SynqEntity,
 )
 
@@ -33,14 +35,30 @@ class ModuleTransformer:
 
         return annotations
 
-    def to_relationships(self, module: SteepModule) -> list[Relationship]:
+    def to_relationships(
+        self,
+        module: SteepModule,
+        snowflake_config: SnowflakeConfig | None = None,
+    ) -> list[Relationship]:
         """Generate relationships for a module.
 
-        Currently returns empty list as modules don't have upstream
-        data source information (e.g., Snowflake account) in the
-        current Steep API response.
+        When snowflake_config is provided, creates a relationship where:
+        - upstream: the Snowflake table (using module's schema and table)
+        - downstream: the Steep module
 
-        Future enhancement: When Snowflake account info is available,
-        this could generate upstream relationships to Snowflake tables.
+        Returns empty list if no Snowflake config is provided.
         """
-        return []
+        if snowflake_config is None:
+            return []
+
+        return [
+            Relationship(
+                upstream=SnowflakeIdentifier.for_snowflake_table(
+                    account=snowflake_config.account,
+                    database=snowflake_config.database,
+                    schema=module.schema_,
+                    table=module.table,
+                ),
+                downstream=CustomIdentifier.for_steep_module(module.id),
+            )
+        ]
